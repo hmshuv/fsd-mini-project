@@ -1,0 +1,26 @@
+{
+    "name": "aimed-api",
+    "private": true,
+    "type": "module",
+    "scripts": {
+    "dev": "TS_NODE_TRANSPILE_ONLY=1 node --watch --loader ts-node/esm src/server.ts",
+    "start": "node dist/server.js",
+    "build": "tsc -p .",
+    "migrate": "prisma migrate deploy || prisma migrate reset --force && prisma db seed",
+    "seed": "prisma db seed"
+    },
+    "dependencies": {
+    "@fastify/helmet": "^12.5.1",
+    "@fastify/cors": "^9.0.1",
+    "@fastify/jwt": "^7.2.4",
+    "@fastify/rate-limit": "^10.1.0",
+    "fastify": "^4.26.2",
+    "zod": "^3.23.8",
+    "prisma": "^5.16.1",
+    "@prisma/client": "^5.16.1"
+    },
+    "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+    }
+    }
