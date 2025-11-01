@@ -1,29 +1,30 @@
-version: "3.9"
 services:
-db:
-image: postgres:16
-container_name: aimed-db
-environment:
-POSTGRES_USER: app
-POSTGRES_PASSWORD: app
-POSTGRES_DB: aimed
-ports:
-- "5432:5432"
+  db:
+    image: postgres:16
+    container_name: aimed-db
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: aimed
+    ports:
+      - "5432:5432"
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+  api:
+    build: ..
+    container_name: aimed-api
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://app:app@db:5432/aimed?schema=public
+      JWT_SECRET: devdevdev
+      NODE_ENV: development
+      PORT: 4000
+      CORS_ORIGIN: http://localhost:3000
+    ports:
+      - "4000:4000"
+    command: ["sh","-c","npm --prefix server run migrate && npm --prefix server run dev"]
+    volumes:
+      - ./server:/app/server
 volumes:
-- dbdata:/var/lib/postgresql/data
-api:
-build: .
-container_name: aimed-api
-depends_on:
-- db
-environment:
-DATABASE_URL: postgresql://app:app@db:5432/aimed?schema=public
-JWT_SECRET: devdevdev
-NODE_ENV: development
-PORT: 4000
-CORS_ORIGIN: http://localhost:3000
-ports:
-- "4000:4000"
-command: ["sh","-c","npm --prefix server run migrate && npm --prefix server run dev"]
-volumes:
-dbdata:
+  dbdata:
