@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
+import { api } from "@/lib/api"
 
 export default function UploadReportPage() {
   const [files, setFiles] = useState<File[]>([])
@@ -89,17 +90,40 @@ export default function UploadReportPage() {
 
     setIsUploading(true)
 
-    // Simulate upload
-    setTimeout(() => {
-      setIsUploading(false)
+    try {
+      // For demo purposes, using a hardcoded patient ID
+      // In real app, this would come from auth context
+      const patientId = "demo-patient-id"
+
+      // Create a new encounter
+      const encounter = await api.encounters.create({
+        patientId,
+        symptoms,
+        startedAt: new Date().toISOString(),
+      })
+
+      // Upload attachments
+      for (const file of files) {
+        await api.encounters.uploadAttachment(encounter.id, file)
+      }
+
       toast({
         title: "Upload successful",
-        description: "Your reports have been uploaded successfully",
+        description: "Your reports have been uploaded and are being analyzed",
       })
 
       // Navigate to diagnosis page
       router.push("/patient/diagnosis")
-    }, 2000)
+    } catch (error) {
+      console.error("Upload failed:", error)
+      toast({
+        title: "Upload failed",
+        description: "There was an error uploading your reports. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsUploading(false)
+    }
   }
 
   const formatFileSize = (bytes: number) => {

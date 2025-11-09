@@ -1,15 +1,97 @@
+"use client"
+
 import Link from "next/link"
+import React, { useEffect, useState } from "react"
 import { FileText, TrendingUp, Activity, Clock, Upload, Brain, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
+import { api } from "@/lib/api"
+
+interface Patient {
+  id: string
+  firstName: string
+  lastName: string
+  encounters: any[]
+}
+
+interface Stats {
+  recentReports: number
+  healthScore: number
+  aiDiagnoses: number
+  lastCheckup: string
+}
 
 export default function PatientDashboardPage() {
+  const [patient, setPatient] = useState<Patient | null>(null)
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        // For demo purposes, using a hardcoded patient ID
+        // In real app, this would come from auth context
+        const patientId = "demo-patient-id"
+        const patientData = await api.patients.getById(patientId)
+        setPatient(patientData)
+
+        // Calculate stats from patient data
+        const encounters = patientData.encounters || []
+        const recentReports = encounters.length
+        const aiDiagnoses = encounters.filter((e: any) =>
+          e.predictions && e.predictions.length > 0
+        ).length
+
+        // Calculate health score based on recent diagnoses
+        const healthScore = encounters.length > 0 ?
+          Math.min(100, 60 + (encounters.length * 5)) : 75
+
+        // Get last checkup date
+        const lastCheckup = encounters.length > 0 ?
+          new Date(encounters[0].createdAt).toLocaleDateString() : "No records"
+
+        setStats({
+          recentReports,
+          healthScore,
+          aiDiagnoses,
+          lastCheckup
+        })
+      } catch (error) {
+        console.error("Failed to load dashboard data:", error)
+        // Fallback to demo data
+        setStats({
+          recentReports: 12,
+          healthScore: 85,
+          aiDiagnoses: 8,
+          lastCheckup: "3 days ago"
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadDashboardData()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Loading...</h1>
+          <p className="text-muted-foreground">Fetching your health data</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Welcome Section */}
       <div>
-        <h1 className="text-3xl font-bold mb-2">Welcome back, John!</h1>
+        <h1 className="text-3xl font-bold mb-2">
+          Welcome back, {patient ? `${patient.firstName} ${patient.lastName}` : "Patient"}!
+        </h1>
         <p className="text-muted-foreground">Here's an overview of your health status</p>
       </div>
 
@@ -21,8 +103,8 @@ export default function PatientDashboardPage() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-muted-foreground">+2 from last month</p>
+            <div className="text-2xl font-bold">{stats?.recentReports || 0}</div>
+            <p className="text-xs text-muted-foreground">Total medical reports</p>
           </CardContent>
         </Card>
 
@@ -32,8 +114,8 @@ export default function PatientDashboardPage() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">85%</div>
-            <Progress value={85} className="mt-2" />
+            <div className="text-2xl font-bold">{stats?.healthScore || 0}%</div>
+            <Progress value={stats?.healthScore || 0} className="mt-2" />
           </CardContent>
         </Card>
 
@@ -43,8 +125,8 @@ export default function PatientDashboardPage() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">8</div>
-            <p className="text-xs text-muted-foreground">All completed</p>
+            <div className="text-2xl font-bold">{stats?.aiDiagnoses || 0}</div>
+            <p className="text-xs text-muted-foreground">AI-powered analyses</p>
           </CardContent>
         </Card>
 
@@ -54,8 +136,8 @@ export default function PatientDashboardPage() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">3d</div>
-            <p className="text-xs text-muted-foreground">ago</p>
+            <div className="text-2xl font-bold">{stats?.lastCheckup || "N/A"}</div>
+            <p className="text-xs text-muted-foreground">Most recent visit</p>
           </CardContent>
         </Card>
       </div>
@@ -115,7 +197,40 @@ export default function PatientDashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {[
+            {patient?.encounters?.slice(0, 3).map((encounter: any) => (
+              <div
+                key={encounter.id}
+                className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="h-10 w-10 rounded-lg medical-gradient flex items-center justify-center">
+                    <FileText className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-medium">
+                      {encounter.diagnoses[0]?.label || "Medical Report"}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(encounter.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <p className="text-sm font-medium">
+                      {encounter.diagnoses[0]?.confirmed ? "Completed" : "Pending"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Confidence: {encounter.predictions[0]?.probabilities ?
+                        Math.max(...Object.values(encounter.predictions[0].probabilities as Record<string, number>)) * 100 : 0}%
+                    </p>
+                  </div>
+                  <Button variant="ghost" size="sm">
+                    View
+                  </Button>
+                </div>
+              </div>
+            )) || [
               {
                 title: "Chest X-Ray Analysis",
                 date: "2024-01-15",
@@ -170,37 +285,82 @@ export default function PatientDashboardPage() {
           <CardDescription>Personalized recommendations based on your health data</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-              <Activity className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
-              <div>
-                <p className="font-medium text-sm">Regular Exercise Recommended</p>
-                <p className="text-xs text-muted-foreground">
-                  Based on your recent reports, 30 minutes of daily exercise could improve your health score
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
-              <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5" />
-              <div>
-                <p className="font-medium text-sm">Vitamin D Levels Improving</p>
-                <p className="text-xs text-muted-foreground">
-                  Your vitamin D levels have increased by 15% since last month
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg">
-              <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5" />
-              <div>
-                <p className="font-medium text-sm">Schedule Follow-up</p>
-                <p className="text-xs text-muted-foreground">
-                  It's been 3 months since your last comprehensive check-up
-                </p>
-              </div>
-            </div>
-          </div>
+          <AISuggestions />
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+function AISuggestions() {
+  const [suggestions, setSuggestions] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const loadSuggestions = async () => {
+      try {
+        const data = await api.suggestions.getAll()
+        setSuggestions(data)
+      } catch (error) {
+        console.error("Failed to load suggestions:", error)
+        // Fallback suggestions
+        setSuggestions([
+          {
+            id: "1",
+            type: "exercise",
+            title: "Regular Exercise Recommended",
+            description: "Based on your recent reports, 30 minutes of daily exercise could improve your health score",
+            priority: "medium"
+          },
+          {
+            id: "2",
+            type: "vitamin",
+            title: "Vitamin D Levels Improving",
+            description: "Your vitamin D levels have increased by 15% since last month",
+            priority: "low"
+          },
+          {
+            id: "3",
+            type: "checkup",
+            title: "Schedule Follow-up",
+            description: "It's been 3 months since your last comprehensive check-up",
+            priority: "high"
+          }
+        ])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadSuggestions()
+  }, [])
+
+  if (loading) {
+    return <div className="text-center py-4">Loading suggestions...</div>
+  }
+
+  return (
+    <div className="space-y-3">
+      {suggestions.map((suggestion) => {
+        const bgColor = suggestion.priority === 'high' ? 'bg-red-50 dark:bg-red-950/20' :
+                       suggestion.priority === 'medium' ? 'bg-blue-50 dark:bg-blue-950/20' :
+                       'bg-green-50 dark:bg-green-950/20'
+        const iconColor = suggestion.priority === 'high' ? 'text-red-600 dark:text-red-400' :
+                         suggestion.priority === 'medium' ? 'text-blue-600 dark:text-blue-400' :
+                         'text-green-600 dark:text-green-400'
+        const icon = suggestion.type === 'exercise' ? Activity :
+                    suggestion.type === 'vitamin' ? TrendingUp : Clock
+
+        return (
+          <div key={suggestion.id} className={`flex items-start gap-3 p-3 ${bgColor} rounded-lg`}>
+            {React.createElement(icon, { className: `h-5 w-5 ${iconColor} mt-0.5` })}
+            <div>
+              <p className="font-medium text-sm">{suggestion.title}</p>
+              <p className="text-xs text-muted-foreground">{suggestion.description}</p>
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }

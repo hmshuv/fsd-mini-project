@@ -2,81 +2,87 @@ generator client {
   provider = "prisma-client-js"
 }
 
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Patient {
+  id          String   @id @default(cuid())
+  firstName   String
+  lastName    String
+  email       String   @unique
+  phone       String?
+  dateOfBirth DateTime?
+  address     String?
+  bloodType   String?
+  height      Float?
+  weight      Float?
+  allergies   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  encounters  Encounter[]
+}
+
 model Encounter {
-  id String @id @default(cuid())
-  data Json // flexible payload
-  recordedAt DateTime @default(now())
-  authorId String?
-  symptoms EncounterSymptom[]
-  diagnoses Diagnosis[]
+  id          String   @id @default(cuid())
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  startedAt   DateTime @default(now())
+  endedAt     DateTime?
+  data        Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  diagnoses   Diagnosis[]
   predictions Prediction[]
   attachments Attachment[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  @@index([createdAt])
-}
-
-model Symptom {
-  id String @id @default(cuid())
-  name String @unique
-  encounters EncounterSymptom[]
-}
-
-model EncounterSymptom {
-  encounter Encounter @relation(fields: [encounterId], references: [id])
-  encounterId String
-  symptom Symptom @relation(fields: [symptomId], references: [id])
-  symptomId String
-  severity Int @default(1) // 1-5
-  onset DateTime?
-  @@id([encounterId, symptomId])
 }
 
 model Diagnosis {
-  id String @id @default(cuid())
-  encounter Encounter @relation(fields: [encounterId], references: [id])
+  id          String   @id @default(cuid())
   encounterId String
-  label String // e.g. ICD-10 text
-  code String? // e.g. ICD-10 code
-  confirmed Boolean @default(false)
-  createdAt DateTime @default(now())
-}
-
-model Model {
-  id String @id @default(cuid())
-  name String
-  version String
-  notes String?
-  predictions Prediction[]
-  @@unique([name, version])
+  encounter   Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  label       String
+  confidence  Float?
+  confirmed   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Prediction {
-  id String @id @default(cuid())
-  encounter Encounter @relation(fields: [encounterId], references: [id])
-  encounterId String
-  model Model @relation(fields: [modelId], references: [id])
-  modelId String
-  topLabel String?
-  probabilities Json // { "influenza": 0.23, "pneumonia": 0.61, ... }
-  createdAt DateTime @default(now())
-  chosenDiagnosisId String? // optional link if clinician chooses it
+  id            String   @id @default(cuid())
+  encounterId   String
+  encounter     Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  modelId       String
+  model         Model    @relation(fields: [modelId], references: [id])
+  probabilities Json
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Model {
+  id          String   @id @default(cuid())
+  name        String
+  version     String
+  predictions Prediction[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Attachment {
-  id String @id @default(cuid())
-  encounter Encounter @relation(fields: [encounterId], references: [id])
+  id          String   @id @default(cuid())
   encounterId String
-  kind String // "image", "report", etc.
-  url String
-  mimeType String?
-  createdAt DateTime @default(now())
+  encounter   Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  kind        String   // e.g., "image", "report"
+  url         String
+  mimeType    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
-model AuditLog {
-  id String @id @default(cuid())
-  actorId String?
-  action String
-  target String?
-  meta Json?
-  createdAt DateTime @default(now())
+model Symptom {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

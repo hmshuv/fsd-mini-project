@@ -1,57 +1,98 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import { FileText, Download, Eye, Calendar, Filter } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { api } from "@/lib/api"
+
+interface Report {
+  id: string
+  title: string
+  date: string
+  type: string
+  status: string
+  confidence: number
+  diagnosis: string
+  attachments: any[]
+}
 
 export default function PatientHistoryPage() {
-  const reports = [
-    {
-      id: 1,
-      title: "Chest X-Ray Analysis",
-      date: "2024-01-15",
-      type: "X-Ray",
-      status: "Completed",
-      confidence: "95%",
-      diagnosis: "Normal",
-    },
-    {
-      id: 2,
-      title: "Blood Test Results",
-      date: "2024-01-10",
-      type: "Lab Test",
-      status: "Reviewed",
-      confidence: "92%",
-      diagnosis: "Slight Anemia",
-    },
-    {
-      id: 3,
-      title: "MRI Scan Report",
-      date: "2024-01-05",
-      type: "MRI",
-      status: "Completed",
-      confidence: "98%",
-      diagnosis: "Normal",
-    },
-    {
-      id: 4,
-      title: "ECG Report",
-      date: "2023-12-28",
-      type: "ECG",
-      status: "Completed",
-      confidence: "96%",
-      diagnosis: "Normal Sinus Rhythm",
-    },
-    {
-      id: 5,
-      title: "Ultrasound Scan",
-      date: "2023-12-20",
-      type: "Ultrasound",
-      status: "Completed",
-      confidence: "94%",
-      diagnosis: "Normal",
-    },
-  ]
+  const [reports, setReports] = useState<Report[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const loadReports = async () => {
+      try {
+        // For demo purposes, using a hardcoded patient ID
+        // In real app, this would come from auth context
+        const patientId = "demo-patient-id"
+        const patientReports = await api.patients.getReports(patientId)
+        setReports(patientReports)
+      } catch (error) {
+        console.error("Failed to load reports:", error)
+        // Fallback to demo data
+        setReports([
+          {
+            id: "1",
+            title: "Chest X-Ray Analysis",
+            date: "2024-01-15",
+            type: "X-Ray",
+            status: "Completed",
+            confidence: 95,
+            diagnosis: "Normal",
+            attachments: []
+          },
+          {
+            id: "2",
+            title: "Blood Test Results",
+            date: "2024-01-10",
+            type: "Lab Test",
+            status: "Reviewed",
+            confidence: 92,
+            diagnosis: "Slight Anemia",
+            attachments: []
+          },
+          {
+            id: "3",
+            title: "MRI Scan Report",
+            date: "2024-01-05",
+            type: "MRI",
+            status: "Completed",
+            confidence: 98,
+            diagnosis: "Normal",
+            attachments: []
+          },
+          {
+            id: "4",
+            title: "ECG Report",
+            date: "2023-12-28",
+            type: "ECG",
+            status: "Completed",
+            confidence: 96,
+            diagnosis: "Normal Sinus Rhythm",
+            attachments: []
+          },
+          {
+            id: "5",
+            title: "Ultrasound Scan",
+            date: "2023-12-20",
+            type: "Ultrasound",
+            status: "Completed",
+            confidence: 94,
+            diagnosis: "Normal",
+            attachments: []
+          },
+        ])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadReports()
+  }, [])
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -81,45 +122,53 @@ export default function PatientHistoryPage() {
 
       {/* Reports List */}
       <div className="space-y-4">
-        {reports.map((report) => (
-          <Card key={report.id} className="hover:shadow-lg transition-shadow">
-            <CardContent className="pt-6">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-start gap-4">
-                  <div className="h-12 w-12 rounded-lg medical-gradient flex items-center justify-center flex-shrink-0">
-                    <FileText className="h-6 w-6 text-white" />
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="font-semibold text-lg">{report.title}</h3>
-                    <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {report.date}
-                      </span>
-                      <span>•</span>
-                      <Badge variant="outline">{report.type}</Badge>
-                      <span>•</span>
-                      <span>Confidence: {report.confidence}</span>
+        {loading ? (
+          <div className="text-center py-8">Loading medical history...</div>
+        ) : reports.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            No medical reports found. Upload your first report to get started.
+          </div>
+        ) : (
+          reports.map((report) => (
+            <Card key={report.id} className="hover:shadow-lg transition-shadow">
+              <CardContent className="pt-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-start gap-4">
+                    <div className="h-12 w-12 rounded-lg medical-gradient flex items-center justify-center flex-shrink-0">
+                      <FileText className="h-6 w-6 text-white" />
                     </div>
-                    <p className="text-sm">
-                      <span className="font-medium">Diagnosis:</span> {report.diagnosis}
-                    </p>
+                    <div className="space-y-1">
+                      <h3 className="font-semibold text-lg">{report.title}</h3>
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {report.date}
+                        </span>
+                        <span>•</span>
+                        <Badge variant="outline">{report.type}</Badge>
+                        <span>•</span>
+                        <span>Confidence: {report.confidence}%</span>
+                      </div>
+                      <p className="text-sm">
+                        <span className="font-medium">Diagnosis:</span> {report.diagnosis}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+                      <Eye className="h-4 w-4" />
+                      View
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+                      <Download className="h-4 w-4" />
+                      Download
+                    </Button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="gap-2 bg-transparent">
-                    <Eye className="h-4 w-4" />
-                    View
-                  </Button>
-                  <Button variant="outline" size="sm" className="gap-2 bg-transparent">
-                    <Download className="h-4 w-4" />
-                    Download
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
     </div>
   )

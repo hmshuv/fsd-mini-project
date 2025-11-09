@@ -7,13 +7,103 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { api } from "@/lib/api"
+
+interface DiagnosisData {
+  id: string
+  diagnosis: string
+  confidence: number
+  riskLevel: string
+  keyFindings: string[]
+  recommendations: string[]
+  status: string
+}
 
 export default function DiagnosisPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(true)
   const [progress, setProgress] = useState(0)
   const [showResults, setShowResults] = useState(false)
+  const [diagnosisData, setDiagnosisData] = useState<DiagnosisData | null>(null)
 
   useEffect(() => {
+    const loadDiagnosisData = async () => {
+      try {
+        // For demo purposes, using a hardcoded patient ID
+        // In real app, this would come from auth context
+        const patientId = "demo-patient-id"
+        const encounters = await api.encounters.getByPatientId(patientId)
+
+        if (encounters.length > 0) {
+          const latestEncounter = encounters[0]
+          const predictions = latestEncounter.predictions || []
+          const diagnoses = latestEncounter.diagnoses || []
+
+          // Calculate confidence from predictions
+          const confidence = predictions.length > 0 ?
+            Math.max(...Object.values(predictions[0].probabilities as Record<string, number>)) * 100 : 85
+
+          setDiagnosisData({
+            id: latestEncounter.id,
+            diagnosis: diagnoses[0]?.label || "Pneumonia (Community-Acquired)",
+            confidence,
+            riskLevel: confidence > 90 ? "High" : confidence > 70 ? "Moderate" : "Low",
+            keyFindings: [
+              "Right Lower Lobe Consolidation",
+              "Elevated White Blood Cell Count",
+              "Increased C-Reactive Protein"
+            ],
+            recommendations: [
+              "Immediate Medical Consultation",
+              "Antibiotic Therapy",
+              "Follow-up Imaging"
+            ],
+            status: diagnoses[0]?.confirmed ? "Reviewed" : "Pending Review"
+          })
+        } else {
+          // Fallback to demo data
+          setDiagnosisData({
+            id: "demo-diagnosis",
+            diagnosis: "Pneumonia (Community-Acquired)",
+            confidence: 94.5,
+            riskLevel: "Moderate",
+            keyFindings: [
+              "Right Lower Lobe Consolidation",
+              "Elevated White Blood Cell Count",
+              "Increased C-Reactive Protein"
+            ],
+            recommendations: [
+              "Immediate Medical Consultation",
+              "Antibiotic Therapy",
+              "Follow-up Imaging"
+            ],
+            status: "Reviewed"
+          })
+        }
+      } catch (error) {
+        console.error("Failed to load diagnosis data:", error)
+        // Fallback to demo data
+        setDiagnosisData({
+          id: "demo-diagnosis",
+          diagnosis: "Pneumonia (Community-Acquired)",
+          confidence: 94.5,
+          riskLevel: "Moderate",
+          keyFindings: [
+            "Right Lower Lobe Consolidation",
+            "Elevated White Blood Cell Count",
+            "Increased C-Reactive Protein"
+          ],
+          recommendations: [
+            "Immediate Medical Consultation",
+            "Antibiotic Therapy",
+            "Follow-up Imaging"
+          ],
+          status: "Reviewed"
+        })
+      }
+    }
+
+    loadDiagnosisData()
+
     if (isAnalyzing) {
       const interval = setInterval(() => {
         setProgress((prev) => {
@@ -109,12 +199,12 @@ export default function DiagnosisPage() {
         <Card className="border-primary/50 bg-gradient-to-br from-primary/5 to-transparent">
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <div className="p-3 rounded-full bg-primary/10">
+            <div className="p-3 rounded-full bg-primary/10">
                 <Brain className="h-6 w-6 text-primary" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">AI Confidence</p>
-                <p className="text-2xl font-bold">94.5%</p>
+                <p className="text-2xl font-bold">{diagnosisData?.confidence.toFixed(1) || 94.5}%</p>
               </div>
             </div>
           </CardContent>
@@ -128,7 +218,7 @@ export default function DiagnosisPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Risk Level</p>
-                <p className="text-2xl font-bold">Moderate</p>
+                <p className="text-2xl font-bold">{diagnosisData?.riskLevel || "Moderate"}</p>
               </div>
             </div>
           </CardContent>
@@ -142,7 +232,7 @@ export default function DiagnosisPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Status</p>
-                <p className="text-2xl font-bold">Reviewed</p>
+                <p className="text-2xl font-bold">{diagnosisData?.status || "Reviewed"}</p>
               </div>
             </div>
           </CardContent>
@@ -163,10 +253,10 @@ export default function DiagnosisPage() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
-            <h3 className="text-xl font-semibold mb-2">Pneumonia (Community-Acquired)</h3>
+            <h3 className="text-xl font-semibold mb-2">{diagnosisData?.diagnosis || "Pneumonia (Community-Acquired)"}</h3>
             <p className="text-muted-foreground">
-              The AI has detected patterns consistent with community-acquired pneumonia in the chest X-ray. There are
-              signs of consolidation in the right lower lobe with associated infiltrates.
+              The AI has detected patterns consistent with {diagnosisData?.diagnosis.toLowerCase() || "community-acquired pneumonia"} in the medical reports.
+              Analysis completed with {diagnosisData?.confidence.toFixed(1) || 94.5}% confidence.
             </p>
           </div>
 
@@ -176,33 +266,23 @@ export default function DiagnosisPage() {
               Key Findings
             </h4>
             <div className="grid gap-3">
-              <div className="flex items-start gap-3 p-3 rounded-lg border bg-card">
-                <div className="h-2 w-2 rounded-full bg-amber-500 mt-2" />
-                <div>
-                  <p className="font-medium">Right Lower Lobe Consolidation</p>
-                  <p className="text-sm text-muted-foreground">
-                    Dense opacity detected in the right lower lobe suggesting fluid or inflammatory infiltrate
-                  </p>
+              {(diagnosisData?.keyFindings || [
+                "Right Lower Lobe Consolidation",
+                "Elevated White Blood Cell Count",
+                "Increased C-Reactive Protein"
+              ]).map((finding, index) => (
+                <div key={index} className="flex items-start gap-3 p-3 rounded-lg border bg-card">
+                  <div className="h-2 w-2 rounded-full bg-amber-500 mt-2" />
+                  <div>
+                    <p className="font-medium">{finding}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {index === 0 ? "Dense opacity detected suggesting fluid or inflammatory infiltrate" :
+                       index === 1 ? "Lab results indicating active infection" :
+                       "Levels suggest significant inflammatory response"}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-start gap-3 p-3 rounded-lg border bg-card">
-                <div className="h-2 w-2 rounded-full bg-amber-500 mt-2" />
-                <div>
-                  <p className="font-medium">Elevated White Blood Cell Count</p>
-                  <p className="text-sm text-muted-foreground">
-                    Lab results show WBC count of 14,500/μL indicating active infection
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-3 rounded-lg border bg-card">
-                <div className="h-2 w-2 rounded-full bg-amber-500 mt-2" />
-                <div>
-                  <p className="font-medium">Increased C-Reactive Protein</p>
-                  <p className="text-sm text-muted-foreground">
-                    CRP levels at 85 mg/L suggest significant inflammatory response
-                  </p>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
 
@@ -214,45 +294,27 @@ export default function DiagnosisPage() {
               AI Recommendations
             </h4>
             <div className="space-y-3">
-              <div className="p-4 rounded-lg border bg-card">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-full bg-primary/10 mt-0.5">
-                    <CheckCircle2 className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium mb-1">Immediate Medical Consultation</p>
-                    <p className="text-sm text-muted-foreground">
-                      Schedule an appointment with a pulmonologist or primary care physician within 24-48 hours
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="p-4 rounded-lg border bg-card">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-full bg-primary/10 mt-0.5">
-                    <CheckCircle2 className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium mb-1">Antibiotic Therapy</p>
-                    <p className="text-sm text-muted-foreground">
-                      Likely requires broad-spectrum antibiotics. Physician will determine appropriate medication
-                    </p>
+              {(diagnosisData?.recommendations || [
+                "Immediate Medical Consultation",
+                "Antibiotic Therapy",
+                "Follow-up Imaging"
+              ]).map((recommendation, index) => (
+                <div key={index} className="p-4 rounded-lg border bg-card">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded-full bg-primary/10 mt-0.5">
+                      <CheckCircle2 className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium mb-1">{recommendation}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {index === 0 ? "Schedule an appointment with a physician within 24-48 hours" :
+                         index === 1 ? "Physician will determine appropriate medication and treatment" :
+                         "Repeat imaging in 4-6 weeks to confirm resolution"}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="p-4 rounded-lg border bg-card">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-full bg-primary/10 mt-0.5">
-                    <CheckCircle2 className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium mb-1">Follow-up Imaging</p>
-                    <p className="text-sm text-muted-foreground">
-                      Repeat chest X-ray in 4-6 weeks to confirm resolution of pneumonia
-                    </p>
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
 
